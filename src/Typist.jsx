@@ -13,6 +13,7 @@ export default class Typist extends Component {
   static propTypes = {
     children: PropTypes.node,
     className: PropTypes.string,
+    innerText: PropTypes.string,
     avgTypingDelay: PropTypes.number,
     stdTypingDelay: PropTypes.number,
     startDelay: PropTypes.number,
@@ -44,6 +45,8 @@ export default class Typist extends Component {
     if (props.children) {
       this.linesToType = utils.extractTextFromElement(props.children);
     }
+
+    this.startType = this.startType.bind(this);
   }
 
   state = {
@@ -52,20 +55,23 @@ export default class Typist extends Component {
   }
 
   componentDidMount() {
-    this.mounted = true;
-    const { children, startDelay } = this.props;
-    if (children) {
-      if (startDelay > 0 && typeof window !== 'undefined') {
-        setTimeout(this.typeAllLines.bind(this), startDelay);
-      } else {
-        this.typeAllLines();
-      }
-    } else {
-      this.onTypingDone();
+    this.startType();
+  }
+
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.innerText.localeCompare(this.props.innerText)) {
+      this.setState({
+        textLines: [],
+        isDone: false,
+      });
     }
   }
 
   shouldComponentUpdate(nextProps, nextState) {
+    if (nextProps.innerText.localeCompare(this.props.innerText)) {
+      // compare if text have changed
+      return true;
+    }
     if (nextState.textLines.length !== this.state.textLines.length) {
       return true;
     }
@@ -79,6 +85,20 @@ export default class Typist extends Component {
     return this.state.isDone !== nextState.isDone;
   }
 
+  componentDidUpdate(prevProps) {
+    if (this.props.innerText.localeCompare(prevProps.innerText)) {
+      this.mounted = false;
+      this.linesToType = [];
+      this.introducedDelay = null;
+
+      if (this.props.children) {
+        this.linesToType = utils.extractTextFromElement(this.props.children);
+      }
+
+      this.startType();
+    }
+  }
+
   componentWillUnmount() {
     this.mounted = false;
   }
@@ -87,6 +107,20 @@ export default class Typist extends Component {
     if (!this.mounted) { return; }
     this.setState({ isDone: true });
     this.props.onTypingDone();
+  }
+
+  startType() {
+    this.mounted = true;
+    const { children, startDelay } = this.props;
+    if (children) {
+      if (startDelay > 0 && typeof window !== 'undefined') {
+        setTimeout(this.typeAllLines.bind(this), startDelay);
+      } else {
+        this.typeAllLines();
+      }
+    } else {
+      this.onTypingDone();
+    }
   }
 
   delayGenerator = (line, lineIdx, character, charIdx) => {
